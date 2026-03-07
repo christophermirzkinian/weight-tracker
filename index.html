@@ -14,6 +14,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
 <style>
 :root {
   --bg:#0B0B0B; --card:#131313; --card2:#1A1A1A;
@@ -74,6 +76,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .chart-wrap{margin:12px 16px 0;background:var(--card);border:1px solid var(--border);padding:14px}
 .chart-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
 .chart-ttl{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim)}
+.chart-reset{background:none;border:1px solid var(--border2);color:var(--text-muted);padding:2px 7px;font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;display:none;-webkit-tap-highlight-color:transparent}
+.chart-reset.vis{display:block}
 .legend{display:flex;gap:10px}
 .li{display:flex;align-items:center;gap:4px;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted)}
 .ld{width:10px;height:2px}
@@ -210,10 +214,13 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <div class="chart-wrap">
       <div class="chart-hdr">
         <div class="chart-ttl">Weight Trend</div>
+        <div style="display:flex;align-items:center;gap:10px">
+        <button class="chart-reset" id="chartReset" onclick="resetChartZoom()">Reset</button>
         <div class="legend">
           <div class="li"><div class="ld" style="background:var(--accent)"></div>7d avg</div>
           <div class="li"><div class="ld" style="background:rgba(128,128,128,.6)"></div>trend</div>
           <div class="li"><div class="ld" style="background:var(--red)"></div>goal</div>
+        </div>
         </div>
       </div>
       <canvas id="wChart" height="210"></canvas>
@@ -652,8 +659,9 @@ function renderChart(){
     {label:'7d Avg',data:maD,borderColor:ac,borderWidth:2.5,pointRadius:0,spanGaps:false,tension:0.35,fill:false},
     {label:'Trend',data:trend,borderColor:tc,borderWidth:1.5,borderDash:[5,5],pointRadius:0,tension:0,fill:false},
     {label:'Goal',data:goalL,borderColor:'rgba(255,64,64,.55)',borderWidth:1.5,borderDash:[7,5],pointRadius:0,tension:0,fill:false}
-  ]},options:{responsive:true,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{backgroundColor:tb,titleColor:tt,bodyColor:tbody,borderColor:tbo,borderWidth:1,titleFont:{family:'Barlow Condensed',size:11},bodyFont:{family:'Bebas Neue',size:16},callbacks:{label:c=>{if(c.raw===null||c.dataset.label==='Goal')return null;return c.dataset.label+': '+c.raw+' kg'}}}},scales:{x:{ticks:{color:tkc,font:{family:'Barlow Condensed',size:9},maxRotation:0,autoSkip:true,maxTicksLimit:7},grid:{color:gc},border:{color:bc}},y:{min:yMin,max:yMax,ticks:{color:ytc,font:{family:'Bebas Neue',size:12},callback:v=>v+' kg'},grid:{color:gc},border:{color:bc}}},animation:{duration:500,easing:'easeOutQuart'}}});
+  ]},options:{responsive:true,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{backgroundColor:tb,titleColor:tt,bodyColor:tbody,borderColor:tbo,borderWidth:1,titleFont:{family:'Barlow Condensed',size:11},bodyFont:{family:'Bebas Neue',size:16},callbacks:{label:c=>{if(c.raw===null||c.dataset.label==='Goal')return null;return c.dataset.label+': '+c.raw+' kg'}}},zoom:{zoom:{pinch:{enabled:true},wheel:{enabled:false},mode:'x',onZoomComplete(){document.getElementById('chartReset').classList.add('vis')}},pan:{enabled:true,mode:'x',onPanComplete(){document.getElementById('chartReset').classList.add('vis')}}}},scales:{x:{ticks:{color:tkc,font:{family:'Barlow Condensed',size:9},maxRotation:0,autoSkip:true,maxTicksLimit:7},grid:{color:gc},border:{color:bc}},y:{min:yMin,max:yMax,ticks:{color:ytc,font:{family:'Bebas Neue',size:12},callback:v=>v+' kg'},grid:{color:gc},border:{color:bc}}},animation:{duration:500,easing:'easeOutQuart'}}});
 }
+function resetChartZoom(){if(chart){chart.resetZoom();document.getElementById('chartReset').classList.remove('vis')}}
 
 // ── RENDER TABLES ─────────────────────────────────────────────────────────────
 function renderWeekly(){
