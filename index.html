@@ -127,6 +127,18 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .status-val{font-size:11px;color:var(--text)}
 .danger-btn{width:100%;background:none;color:var(--red);border:1px solid var(--red);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:11px;cursor:pointer;opacity:.7}
 .danger-btn:active{opacity:1}
+/* ERROR LOG */
+.err-log{margin-top:12px;background:var(--bg);border:1px solid var(--border2);max-height:180px;overflow-y:auto;display:none}
+.err-log.has-errors{display:block}
+.err-log-hdr{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid var(--border)}
+.err-log-title{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--red)}
+.err-log-clear{background:none;border:none;color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer}
+.err-entry{padding:8px 10px;border-bottom:1px solid var(--border);font-size:11px;line-height:1.5}
+.err-entry:last-child{border-bottom:none}
+.err-time{color:var(--text-muted);font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase}
+.err-op{color:var(--red);font-weight:700;text-transform:uppercase;letter-spacing:1px;font-size:9px}
+.err-msg{color:var(--text);margin-top:2px;word-break:break-word}
+.err-detail{color:var(--text-dim);font-size:10px;margin-top:2px;word-break:break-word;font-family:monospace;letter-spacing:0}
 /* SETUP OVERLAY */
 .setup-overlay{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;flex-direction:column;overflow-y:auto;padding:36px 22px 48px}
 .setup-overlay.hidden{display:none}
@@ -261,6 +273,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <div class="sf"><label>Repository Name</label><input id="cfg-repo" placeholder="weight-tracker" autocapitalize="none" autocorrect="off" spellcheck="false"></div>
       <div class="sf"><label>Personal Access Token</label><input id="cfg-token" type="password" placeholder="ghp_xxxxxxxxxxxx" autocapitalize="none" autocorrect="off" spellcheck="false"></div>
       <button class="btn-p" style="margin-top:4px" onclick="saveConfig()">SAVE &amp; TEST CONNECTION</button>
+      <div class="err-log" id="errLog">
+        <div class="err-log-hdr"><span class="err-log-title">Sync Error Log</span><button class="err-log-clear" onclick="clearErrLog()">Clear</button></div>
+        <div id="errLogBody"></div>
+      </div>
     </div>
     <div class="sb">
       <div class="sb-ttl">Manual Sync</div>
@@ -394,17 +410,48 @@ function mergeData(local,remote){
   return Object.keys(map).sort().map(date=>({date,w:map[date]}));
 }
 
-async function ghGetFile(cfg){
-  const res=await fetch(`${GH_API}/repos/${cfg.user}/${cfg.repo}/contents/${GH_FILE}`,{headers:ghHeaders(cfg.token)});
-  if(res.status===404)return null;
-  if(!res.ok)throw new Error(`GitHub ${res.status}: ${res.statusText}`);
-  const json=await res.json();
-  return{text:atob(json.content.replace(/\n/g,'')),sha:json.sha};
+function ghErrorMsg(status,body,op){
+  const detail=body&&body.message?body.message:'';
+  switch(status){
+    case 401:return{short:'Bad credentials',long:`HTTP 401 — Token is invalid or expired. Generate a new token at GitHub → Settings → Developer settings → Personal access tokens.${detail?' API: '+detail:''}`};
+    case 403:return{short:'Permission denied',long:`HTTP 403 — Token lacks required permissions. Classic tokens need "repo" scope. Fine-grained tokens need "Contents: Read and Write" on this repo.${detail?' API: '+detail:''}`};
+    case 404:return{short:'Repo or file not found',long:`HTTP 404 — Check username "${op.user}" and repo "${op.repo}" are correct. For fine-grained tokens, ensure the token has access to this specific repository.${detail?' API: '+detail:''}`};
+    case 409:return{short:'Conflict (SHA mismatch)',long:`HTTP 409 — File was modified by another device between read and write. Try pulling first, then push again.${detail?' API: '+detail:''}`};
+    case 422:return{short:'Validation failed',long:`HTTP 422 — GitHub rejected the request. Usually a stale SHA. Pull first to get the latest version.${detail?' API: '+detail:''}`};
+    default:return{short:`HTTP ${status}`,long:`HTTP ${status} — Unexpected error.${detail?' API: '+detail:''}`};
+  }
 }
+
+async function ghGetFile(cfg){
+  const url=`${GH_API}/repos/${cfg.user}/${cfg.repo}/contents/${GH_FILE}`;
+  let res;
+  try{res=await fetch(url,{headers:ghHeaders(cfg.token)})}catch(e){
+    throw Object.assign(new Error('Network error — cannot reach GitHub API. Check your internet connection.'),{op:'READ',url,detail:e.message});
+  }
+  if(res.status===404)return null;
+  if(!res.ok){
+    const body=await res.json().catch(()=>({}));
+    const msg=ghErrorMsg(res.status,body,cfg);
+    throw Object.assign(new Error(msg.short),{op:'READ',url,status:res.status,detail:msg.long});
+  }
+  const json=await res.json();
+  try{return{text:atob(json.content.replace(/\n/g,'')),sha:json.sha}}catch(e){
+    throw Object.assign(new Error('Failed to decode file content'),{op:'READ',url,detail:'base64 decode error: '+e.message});
+  }
+}
+
 async function ghPutFile(cfg,csvText,sha,msg){
+  const url=`${GH_API}/repos/${cfg.user}/${cfg.repo}/contents/${GH_FILE}`;
   const body={message:msg||`Weight update ${today()}`,content:btoa(unescape(encodeURIComponent(csvText))),...(sha?{sha}:{})};
-  const res=await fetch(`${GH_API}/repos/${cfg.user}/${cfg.repo}/contents/${GH_FILE}`,{method:'PUT',headers:ghHeaders(cfg.token),body:JSON.stringify(body)});
-  if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.message||`GitHub ${res.status}`)}
+  let res;
+  try{res=await fetch(url,{method:'PUT',headers:ghHeaders(cfg.token),body:JSON.stringify(body)})}catch(e){
+    throw Object.assign(new Error('Network error — cannot reach GitHub API'),{op:'WRITE',url,detail:e.message});
+  }
+  if(!res.ok){
+    const rbody=await res.json().catch(()=>({}));
+    const emsg=ghErrorMsg(res.status,rbody,cfg);
+    throw Object.assign(new Error(emsg.short),{op:'WRITE',url,status:res.status,detail:emsg.long});
+  }
   return(await res.json()).content.sha;
 }
 
@@ -419,7 +466,11 @@ async function pullFromGitHub(silent){
     setSyncState('synced','Synced with GitHub');
     if(!silent)toast('Pulled from GitHub');
     refresh();
-  }catch(e){setSyncState('error','Sync error: '+e.message);if(!silent)toast('Pull failed: '+e.message,true)}
+  }catch(e){
+    setSyncState('error','Error: '+e.message);
+    addErrLog('PULL',e);
+    if(!silent)toast('Pull failed — see error log in Settings',true);
+  }
 }
 
 async function pushToGitHub(silent){
@@ -435,7 +486,12 @@ async function pushToGitHub(silent){
     lsSet(LS_SHA,newSha);lsSet(LS_DIRTY,false);
     setSyncState('synced','Synced with GitHub');
     if(!silent)toast('Saved to GitHub');
-  }catch(e){lsSet(LS_DIRTY,true);setSyncState('error','Sync error: '+e.message);if(!silent)toast('Sync failed — saved locally',true)}
+  }catch(e){
+    lsSet(LS_DIRTY,true);
+    setSyncState('error','Error: '+e.message);
+    addErrLog('PUSH',e);
+    if(!silent)toast('Push failed — see error log in Settings',true);
+  }
 }
 
 async function forcePull(){await pullFromGitHub(false)}
@@ -449,7 +505,9 @@ async function saveSetup(){
   const repo=document.getElementById('su-repo').value.trim();
   const token=document.getElementById('su-token').value.trim();
   if(!user||!repo||!token){toast('Fill in all fields',true);return}
+  if(!token.startsWith('ghp_')&&!token.startsWith('github_pat_')){toast('Token should start with ghp_ or github_pat_',true);return}
   lsSet(LS_CFG,{user,repo,token});hideSetup();populateSettings();
+  toast('Testing connection…');
   await pullFromGitHub(false);
 }
 function skipSetup(){lsSet(LS_CFG,{skipped:true});hideSetup();setSyncState('none','')}
@@ -470,7 +528,8 @@ async function saveConfig(){
   const repo=document.getElementById('cfg-repo').value.trim();
   const token=document.getElementById('cfg-token').value.trim();
   if(!user||!repo||!token){toast('Fill in all fields',true);return}
-  lsSet(LS_CFG,{user,repo,token});toast('Config saved — testing…');
+  if(!token.startsWith('ghp_')&&!token.startsWith('github_pat_')){toast('Token should start with ghp_ or github_pat_',true);return}
+  lsSet(LS_CFG,{user,repo,token});toast('Config saved — testing connection…');
   await pullFromGitHub(false);populateSettings();
 }
 function clearAllData(){
@@ -509,7 +568,24 @@ function today(){const d=new Date();return`${d.getFullYear()}-${String(d.getMont
 
 // ── TOAST ─────────────────────────────────────────────────────────────────────
 let toastT;
-function toast(msg,isErr){const el=document.getElementById('toast');el.textContent=msg;el.className='toast on'+(isErr?' err':'');clearTimeout(toastT);toastT=setTimeout(()=>el.className='toast',2600)}
+function toast(msg,isErr){const el=document.getElementById('toast');el.textContent=msg;el.className='toast on'+(isErr?' err':'');clearTimeout(toastT);toastT=setTimeout(()=>el.className='toast',isErr?6000:2600)}
+
+// ── ERROR LOG ──────────────────────────────────────────────────────────────────
+const ERR_LOG=[];
+function addErrLog(op,err){
+  const entry={time:new Date().toLocaleTimeString(),op,msg:err.message||String(err),detail:err.detail||'',status:err.status||'',url:err.url||''};
+  ERR_LOG.unshift(entry);
+  if(ERR_LOG.length>20)ERR_LOG.length=20;
+  renderErrLog();
+  console.error(`[WT Sync ${op}]`,entry.msg,entry.detail,entry.url);
+}
+function renderErrLog(){
+  const wrap=document.getElementById('errLog'),body=document.getElementById('errLogBody');
+  if(!wrap||!body)return;
+  wrap.className=ERR_LOG.length?'err-log has-errors':'err-log';
+  body.innerHTML=ERR_LOG.map(e=>`<div class="err-entry"><span class="err-time">${e.time}</span> <span class="err-op">${e.op}</span><div class="err-msg">${e.msg}${e.status?' (HTTP '+e.status+')':''}</div>${e.detail?'<div class="err-detail">'+e.detail+'</div>':''}${e.url?'<div class="err-detail">URL: '+e.url+'</div>':''}</div>`).join('');
+}
+function clearErrLog(){ERR_LOG.length=0;renderErrLog()}
 
 // ── NAV ───────────────────────────────────────────────────────────────────────
 function switchTab(name,btn){
