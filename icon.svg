@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <clipPath id="round">
+      <rect width="512" height="512" rx="110" ry="110"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="110" ry="110" fill="#0B0B0B"/>
+
+  <!-- Accent lines (lime green) -->
+  <rect x="52" y="68" width="130" height="7" fill="#C6FF00"/>
+  <rect x="52" y="437" width="130" height="7" fill="#C6FF00"/>
+
+  <!-- DWD text -->
+  <text
+    x="256" y="320"
+    font-family="Arial Black, Arial, sans-serif"
+    font-weight="900"
+    font-size="210"
+    fill="#E8E8E8"
+    text-anchor="middle"
+    letter-spacing="-4"
+  >DWD</text>
+
+  <!-- Subtitle lines -->
+  <text
+    x="256" y="372"
+    font-family="Arial, sans-serif"
+    font-weight="700"
+    font-size="38"
+    fill="#666"
+    text-anchor="middle"
+    letter-spacing="8"
+  >DAILY</text>
+  <text
+    x="256" y="410"
+    font-family="Arial, sans-serif"
+    font-weight="700"
+    font-size="38"
+    fill="#666"
+    text-anchor="middle"
+    letter-spacing="8"
+  >WEIGHT</text>
+  <text
+    x="256" y="448"
+    font-family="Arial, sans-serif"
+    font-weight="400"
+    font-size="30"
+    fill="#444"
+    text-anchor="middle"
+    letter-spacing="8"
+  >DASHBOARD</text>
+</svg>
