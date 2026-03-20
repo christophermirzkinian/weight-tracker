@@ -303,7 +303,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <div class="sb-ttl">Danger Zone</div>
       <button class="danger-btn" onclick="clearAllData()">CLEAR ALL LOCAL DATA</button>
     </div>
-    <div style="text-align:center;padding:8px 0 16px;color:var(--text-muted);font-size:11px;letter-spacing:1px">v1.0.0</div>
+    <div style="text-align:center;padding:8px 0 16px;color:var(--text-muted);font-size:11px;letter-spacing:1px">v1.1.0</div>
   </div>
 
   <div class="nav">
@@ -480,6 +480,67 @@ async function ghPutFile(cfg,csvText,sha,msg){
   return(await res.json()).content.sha;
 }
 
+async function syncOnLoad(){
+  if(!hasConfig())return;
+  const cfg=getConfig();
+  if(!navigator.onLine){setSyncState('offline','Offline — using local data');return}
+  setSyncState('syncing','Syncing…');
+  try{
+    const remote=await ghGetFile(cfg);
+    if(!remote){
+      // No remote file — push local data to create it
+      const newSha=await ghPutFile(cfg,dataToCsv(DATA),null,`Weight update ${today()}`);
+      lsSet(LS_SHA,newSha);lsSet(LS_DIRTY,false);
+      setSyncState('synced','Synced — created data.csv on GitHub');
+      refresh();return;
+    }
+    const remoteData=csvToData(remote.text);
+    const localSorted=sortedArr(DATA), remoteSorted=sortedArr(remoteData);
+    const localLatest=localSorted.length?localSorted[localSorted.length-1].date:'';
+    const remoteLatest=remoteSorted.length?remoteSorted[remoteSorted.length-1].date:'';
+    const isDirty=lsGet(LS_DIRTY);
+
+    if(isDirty||localLatest>remoteLatest){
+      // Local is ahead or has unpushed changes — merge then push
+      DATA=mergeData(DATA,remoteData);saveLocal(DATA);
+      const newSha=await ghPutFile(cfg,dataToCsv(DATA),remote.sha,`Weight update ${today()}`);
+      lsSet(LS_SHA,newSha);lsSet(LS_DIRTY,false);
+      setSyncState('synced','Synced — pushed local changes');
+    }else{
+      // Remote is same or ahead — pull remote data
+      const before=DATA.length;
+      DATA=mergeData(DATA,remoteData);saveLocal(DATA);lsSet(LS_SHA,remote.sha);
+      const added=DATA.length-before;
+      setSyncState('synced','Synced with GitHub'+(added?' — '+added+' new entries':''));
+    }
+    refresh();
+  }catch(e){
+    setSyncState('error','Sync error: '+e.message);
+    addErrLog('SYNC',e);
+  }
+}
+
+async function pushToGitHub(silent){
+  if(!hasConfig())return;
+  const cfg=getConfig();
+  if(!navigator.onLine){lsSet(LS_DIRTY,true);setSyncState('offline','Offline — will sync when online');return}
+  setSyncState('syncing','Syncing…');
+  try{
+    const remote=await ghGetFile(cfg);
+    const sha=remote?remote.sha:null;
+    if(remote){DATA=mergeData(DATA,csvToData(remote.text));saveLocal(DATA)}
+    const newSha=await ghPutFile(cfg,dataToCsv(DATA),sha,`Weight update ${today()}`);
+    lsSet(LS_SHA,newSha);lsSet(LS_DIRTY,false);
+    setSyncState('synced','Synced with GitHub');
+    if(!silent)toast('Saved to GitHub');
+  }catch(e){
+    lsSet(LS_DIRTY,true);
+    setSyncState('error','Error: '+e.message);
+    addErrLog('PUSH',e);
+    if(!silent)toast('Push failed — see error log in Settings',true);
+  }
+}
+
 async function pullFromGitHub(silent){
   if(!hasConfig())return;
   const cfg=getConfig();
@@ -505,28 +566,6 @@ async function pullFromGitHub(silent){
     if(!silent)toast('Pull failed — see error log in Settings',true);
   }
 }
-
-async function pushToGitHub(silent){
-  if(!hasConfig())return;
-  const cfg=getConfig();
-  if(!navigator.onLine){lsSet(LS_DIRTY,true);setSyncState('offline','Offline — will sync when online');return}
-  setSyncState('syncing','Syncing…');
-  try{
-    const remote=await ghGetFile(cfg);
-    const sha=remote?remote.sha:null;
-    if(remote){DATA=mergeData(DATA,csvToData(remote.text));saveLocal(DATA)}
-    const newSha=await ghPutFile(cfg,dataToCsv(DATA),sha,`Weight update ${today()}`);
-    lsSet(LS_SHA,newSha);lsSet(LS_DIRTY,false);
-    setSyncState('synced','Synced with GitHub');
-    if(!silent)toast('Saved to GitHub');
-  }catch(e){
-    lsSet(LS_DIRTY,true);
-    setSyncState('error','Error: '+e.message);
-    addErrLog('PUSH',e);
-    if(!silent)toast('Push failed — see error log in Settings',true);
-  }
-}
-
 async function forcePull(){await pullFromGitHub(false)}
 async function forcePush(){await pushToGitHub(false)}
 
@@ -787,7 +826,7 @@ refresh();
 
 const cfg=getConfig();
 if(!cfg.user&&!cfg.skipped){showSetup()}
-else if(hasConfig()){pullFromGitHub(true)}
+else if(hasConfig()){syncOnLoad()}
 else{setSyncState('none','')}
 </script>
 </body>
