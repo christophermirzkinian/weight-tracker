@@ -332,7 +332,12 @@ const SEED=[
   {date:'2026-02-23',w:99.4},{date:'2026-02-24',w:99.1},{date:'2026-02-25',w:99.2},
   {date:'2026-02-26',w:99.4},{date:'2026-02-27',w:100.5},{date:'2026-02-28',w:100.5},
   {date:'2026-03-01',w:99.8},{date:'2026-03-02',w:99.8},{date:'2026-03-03',w:99.6},
-  {date:'2026-03-04',w:98.8},{date:'2026-03-05',w:99.6},{date:'2026-03-06',w:99.2}
+  {date:'2026-03-04',w:98.8},{date:'2026-03-05',w:99.6},{date:'2026-03-06',w:99.2},
+  {date:'2026-03-07',w:99.2},{date:'2026-03-08',w:99.7},{date:'2026-03-09',w:99.8},
+  {date:'2026-03-10',w:99.6},{date:'2026-03-11',w:99.5},{date:'2026-03-12',w:99.0},
+  {date:'2026-03-13',w:99.2},{date:'2026-03-14',w:99.4},{date:'2026-03-15',w:99.5},
+  {date:'2026-03-16',w:99.5},{date:'2026-03-17',w:98.6},{date:'2026-03-18',w:98.3},
+  {date:'2026-03-19',w:98.3}
 ];
 
 const WORKOUTS={
@@ -473,9 +478,14 @@ async function pullFromGitHub(silent){
   setSyncState('syncing','Syncing…');
   try{
     const remote=await ghGetFile(cfg);
-    if(remote){DATA=mergeData(DATA,csvToData(remote.text));saveLocal(DATA);lsSet(LS_SHA,remote.sha)}
-    setSyncState('synced','Synced with GitHub');
-    if(!silent)toast('Pulled from GitHub');
+    if(remote){
+      DATA=mergeData(DATA,csvToData(remote.text));saveLocal(DATA);lsSet(LS_SHA,remote.sha);
+      setSyncState('synced','Synced with GitHub');
+      if(!silent)toast('Pulled from GitHub');
+    }else{
+      setSyncState('error','No data.csv found on GitHub');
+      if(!silent)toast('No data.csv found on GitHub — check repo settings',true);
+    }
     refresh();
   }catch(e){
     setSyncState('error','Error: '+e.message);
