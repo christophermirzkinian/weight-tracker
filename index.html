@@ -391,7 +391,16 @@ const WORKOUTS={
 // ── LOCAL STORAGE ─────────────────────────────────────────────────────────────
 function lsGet(k){try{return JSON.parse(localStorage.getItem(k))}catch{return null}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{toast('Storage error',true)}}
-function loadLocal(){const d=lsGet(LS_DATA);if(d&&Array.isArray(d)&&d.length)return d;lsSet(LS_DATA,SEED);return JSON.parse(JSON.stringify(SEED))}
+function loadLocal(){
+  const d=lsGet(LS_DATA);
+  if(d&&Array.isArray(d)&&d.length){
+    // Always merge SEED so new hardcoded entries are included
+    const merged=mergeData(d,SEED);
+    if(merged.length>d.length){lsSet(LS_DATA,merged);return merged}
+    return d;
+  }
+  lsSet(LS_DATA,SEED);return JSON.parse(JSON.stringify(SEED));
+}
 function saveLocal(d){lsSet(LS_DATA,d)}
 let DATA=loadLocal();
 
@@ -479,9 +488,12 @@ async function pullFromGitHub(silent){
   try{
     const remote=await ghGetFile(cfg);
     if(remote){
-      DATA=mergeData(DATA,csvToData(remote.text));saveLocal(DATA);lsSet(LS_SHA,remote.sha);
+      const parsed=csvToData(remote.text);
+      const before=DATA.length;
+      DATA=mergeData(DATA,parsed);saveLocal(DATA);lsSet(LS_SHA,remote.sha);
+      const added=DATA.length-before;
       setSyncState('synced','Synced with GitHub');
-      if(!silent)toast('Pulled from GitHub');
+      if(!silent)toast(`Pulled ${parsed.length} entries from GitHub`+(added?` (${added} new)`:''));
     }else{
       setSyncState('error','No data.csv found on GitHub');
       if(!silent)toast('No data.csv found on GitHub — check repo settings',true);
