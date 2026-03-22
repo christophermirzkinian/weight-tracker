@@ -165,6 +165,18 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .toast.err{background:var(--red);color:#fff}
 ::-webkit-scrollbar{width:2px}
 ::-webkit-scrollbar-thumb{background:var(--border2)}
+/* WORKOUT RANDOMIZE */
+.wrnd-bar{display:flex;gap:8px;margin-bottom:12px}
+.wrnd-btn{flex:1;background:var(--card);color:var(--text);border:1px solid var(--border2);font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:10px 8px;cursor:pointer;transition:background .15s}
+.wrnd-btn:active{background:var(--border2)}
+.wrnd-confirm{background:var(--accent);color:#000;border-color:var(--accent)}
+.wrnd-confirm:active{opacity:.75}
+.wrnd-cancel{color:var(--text-muted)}
+.wrnd-cb{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;margin-right:8px;vertical-align:middle}
+.wrnd-ex-wrap{display:flex;align-items:flex-start}
+.wrnd-sel-bar{display:flex;gap:12px;margin-bottom:8px}
+.wrnd-sel-all{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);cursor:pointer;background:none;border:none;font-family:'Barlow Condensed',sans-serif;padding:4px 0}
+.wrnd-sel-all:hover{color:var(--text)}
 </style>
 </head>
 <body>
@@ -387,6 +399,40 @@ const WORKOUTS={
     {ph:'Cardio',sr:'1 × 15–20m',ex:'Incline walk or bike',note:'Moderate pace'},
     {ph:'Cool down',sr:'1 × 5 min',ex:'Light stretching',note:'Arms + legs'}]}
 };
+
+// ── WORKOUT RANDOMIZE ─────────────────────────────────────────────────────────
+const EXERCISE_POOL={
+  back:['Lat Pulldown','Seated Cable Row','T-Bar Row','DB Bent-over Row','Cable Row','Chin-ups','Face Pulls','Assisted Pull-up'],
+  chest:['Bench Press (barbell)','Incline DB Bench Press','Cable Flyes','Dips (chest)','Push-ups','DB Bench Press','Close-grip Bench Press'],
+  shoulder:['Seated DB Shoulder Press','DB Lateral Raises','Arnold Press','Front Raises','Cable Lateral Raise','Reverse Fly','Barbell Overhead Press'],
+  legs_compound:['Squat (barbell or goblet)','Barbell Squat','Leg Press','Walking Lunges','Bulgarian Split Squat','Hack Squat','Step-ups','Goblet Squat'],
+  legs_hinge:['Romanian Deadlift','Light Deadlift','Good Morning','Cable Pull-through','Hip Thrust','Stiff-leg Deadlift'],
+  legs_isolation:['Leg Extension','Seated or Lying Leg Curl','Lying Leg Curl','Calf Raises','Seated Calf Raise'],
+  biceps:['Barbell or DB Bicep Curl','DB Bicep Curl','Hammer Curl','Cable Curl','Preacher Curl','Incline DB Curl','EZ Bar Curl'],
+  triceps:['Cable Tricep Pushdown','Triceps Rope Pushdown','Overhead Tricep Extension','Skull Crushers','Close-grip Bench Press','Tricep Dips','Kickbacks'],
+  core:['Plank','Hanging Knee Raises','Cable Crunch','Ab Wheel Rollout','Russian Twist','Dead Bug','Bicycle Crunches'],
+  cardio:['Incline walk / cross trainer / bike','Incline walk or bike','Incline walk / cross trainer','Treadmill walk','Bike','Cross trainer','Rowing machine','Stair climber'],
+  warmup:['Treadmill walk (incline) or bike','Bike or treadmill walk','Treadmill walk','Bike','Cross trainer','Jump rope','Light rowing'],
+  cooldown:['Light stretching']
+};
+function getExGroup(ex,ph){
+  const p=ph.toLowerCase(),e=ex.toLowerCase();
+  if(p.includes('warm'))return'warmup';
+  if(p.includes('cool'))return'cooldown';
+  if(p.includes('core'))return'core';
+  if(p.includes('cardio'))return'cardio';
+  if(p.includes('arm'))return e.includes('curl')||e.includes('bicep')?'biceps':'triceps';
+  if(e.includes('squat')||e.includes('lunge')||e.includes('leg press')||e.includes('step-up')||e.includes('hack')||e.includes('split'))return'legs_compound';
+  if(e.includes('deadlift')||e.includes('romanian')||e.includes('rdl')||e.includes('hip thrust')||e.includes('good morning')||e.includes('pull-through'))return'legs_hinge';
+  if(e.includes('leg curl')||e.includes('leg ext')||e.includes('calf'))return'legs_isolation';
+  if(e.includes('bench')||e.includes('flye')||e.includes('push-up')||e.includes('chest')||e.includes('dip'))return'chest';
+  if(e.includes('pulldown')||e.includes('pull-up')||e.includes('row')||e.includes('chin')||e.includes('face pull'))return'back';
+  if(e.includes('shoulder')||e.includes('lateral')||e.includes('arnold')||e.includes('front raise')||e.includes('reverse fly')||e.includes('overhead press'))return'shoulder';
+  return'chest';
+}
+const activeWorkouts={};
+Object.entries(WORKOUTS).forEach(([k,v])=>{activeWorkouts[k]={title:v.title,rows:v.rows.map(r=>({...r}))}});
+const randomizeState={active:null};
 
 // ── LOCAL STORAGE ─────────────────────────────────────────────────────────────
 function lsGet(k){try{return JSON.parse(localStorage.getItem(k))}catch{return null}}
@@ -796,10 +842,46 @@ async function shareBackup(){
 // ── WORKOUTS ──────────────────────────────────────────────────────────────────
 function phClass(ph){const p=ph.toLowerCase();if(p.includes('warm'))return'pwarm';if(p.includes('arm'))return'pa';if(p.includes('core'))return'pcore';if(p.includes('cardio'))return'pcardio';if(p.includes('cool'))return'pcool';return'pw'}
 function renderWorkouts(){
-  Object.entries(WORKOUTS).forEach(([key,data])=>{
-    document.getElementById('wc-'+key).innerHTML=`<table class="wtbl"><thead><tr><th style="width:88px">Sets / Reps</th><th>Exercise</th></tr></thead><tbody>${data.rows.map(r=>`<tr><td><span class="pb ${phClass(r.ph)}">${r.ph}</span><span class="sr">${r.sr}</span></td><td><div class="en">${r.ex}</div><div class="enote">${r.note}</div></td></tr>`).join('')}</tbody></table>`;
+  Object.entries(activeWorkouts).forEach(([key,data])=>{
+    const isR=randomizeState.active===key;
+    let bar='<div class="wrnd-bar"><button class="wrnd-btn" onclick="resetWorkout(\''+key+'\')">&#8635; Default</button>';
+    if(isR){
+      bar+='<button class="wrnd-btn wrnd-confirm" onclick="confirmRandomize(\''+key+'\')">&#10003; Shuffle Selected</button>';
+      bar+='<button class="wrnd-btn wrnd-cancel" onclick="cancelRandomize(\''+key+'\')">&#10005; Cancel</button>';
+    }else{
+      bar+='<button class="wrnd-btn" onclick="startRandomize(\''+key+'\')">&#9860; Randomize</button>';
+    }
+    bar+='</div>';
+    if(isR){
+      bar+='<div class="wrnd-sel-bar"><button class="wrnd-sel-all" onclick="toggleAllCb(\''+key+'\',true)">Select all</button><button class="wrnd-sel-all" onclick="toggleAllCb(\''+key+'\',false)">Deselect all</button></div>';
+    }
+    const rows=data.rows.map((r,i)=>{
+      const cb=isR?'<input type="checkbox" class="wrnd-cb" data-wk="'+key+'" data-idx="'+i+'">':'';
+      return'<tr><td><span class="pb '+phClass(r.ph)+'">'+r.ph+'</span><span class="sr">'+r.sr+'</span></td><td><div class="wrnd-ex-wrap">'+cb+'<div><div class="en">'+r.ex+'</div><div class="enote">'+r.note+'</div></div></div></td></tr>';
+    }).join('');
+    document.getElementById('wc-'+key).innerHTML=bar+'<table class="wtbl"><thead><tr><th style="width:88px">Sets / Reps</th><th>Exercise</th></tr></thead><tbody>'+rows+'</tbody></table>';
   });
 }
+function startRandomize(key){randomizeState.active=key;renderWorkouts()}
+function cancelRandomize(key){randomizeState.active=null;renderWorkouts()}
+function confirmRandomize(key){
+  const cbs=document.querySelectorAll('input.wrnd-cb[data-wk="'+key+'"]:checked');
+  if(!cbs.length){toast('No exercises selected',true);return}
+  cbs.forEach(cb=>{
+    const idx=parseInt(cb.dataset.idx),row=activeWorkouts[key].rows[idx];
+    const group=getExGroup(row.ex,row.ph),pool=EXERCISE_POOL[group];
+    if(!pool||pool.length<2)return;
+    const candidates=pool.filter(e=>e!==row.ex);
+    if(!candidates.length)return;
+    row.ex=candidates[Math.floor(Math.random()*candidates.length)];
+  });
+  randomizeState.active=null;renderWorkouts();toast('Exercises shuffled');
+}
+function resetWorkout(key){
+  activeWorkouts[key]={title:WORKOUTS[key].title,rows:WORKOUTS[key].rows.map(r=>({...r}))};
+  randomizeState.active=null;renderWorkouts();toast('Reset to default');
+}
+function toggleAllCb(key,checked){document.querySelectorAll('input.wrnd-cb[data-wk="'+key+'"]').forEach(cb=>cb.checked=checked)}
 
 // ── THEME ─────────────────────────────────────────────────────────────────────
 function toggleTheme(){
