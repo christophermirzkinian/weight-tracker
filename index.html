@@ -177,6 +177,39 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .wrnd-sel-bar{display:flex;gap:12px;margin-bottom:8px}
 .wrnd-sel-all{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);cursor:pointer;background:none;border:none;font-family:'Barlow Condensed',sans-serif;padding:4px 0}
 .wrnd-sel-all:hover{color:var(--text)}
+/* GROUP / MULTIPLAYER */
+.grp-hero{margin:16px;background:var(--card);border:1px solid var(--border);padding:20px;text-align:center}
+.grp-hero-ttl{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;margin-bottom:4px}
+.grp-hero-sub{font-size:10px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;font-weight:700}
+.grp-actions{display:flex;gap:8px;margin:12px 16px 0}
+.grp-actions .btn-s{flex:1}
+.grp-form{margin:0 16px;background:var(--card);border:1px solid var(--border);padding:18px;display:none}
+.grp-form.vis{display:block}
+.grp-room{margin:16px;background:var(--card);border:1px solid var(--border);padding:18px;display:none}
+.grp-room.vis{display:block}
+.grp-room-code{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:6px;color:var(--accent);text-align:center;margin:8px 0}
+.grp-room-name{font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--text-dim);text-align:center;margin-bottom:12px}
+.grp-members{margin:12px 0}
+.grp-member{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.grp-member:last-child{border-bottom:none}
+.grp-member-name{font-weight:600;font-size:14px}
+.grp-member-name.me{color:var(--accent)}
+.grp-member-w{font-family:'Bebas Neue',sans-serif;font-size:20px}
+.grp-member-sub{font-size:10px;color:var(--text-dim)}
+.grp-member-right{text-align:right}
+.grp-lb{margin:12px 16px 0}
+.grp-lb-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.grp-lb-ttl{font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--text-dim)}
+.grp-lb-refresh{background:none;border:1px solid var(--border2);color:var(--text-muted);padding:4px 10px;font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer}
+.grp-chart-wrap{margin:12px 16px 0;background:var(--card);border:1px solid var(--border);padding:14px}
+.grp-disconnect{margin:16px;text-align:center}
+.grp-api-row{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.grp-api-row label{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim)}
+.grp-api-row input{background:var(--bg);border:1px solid var(--border2);color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:500;padding:10px 12px;width:100%;outline:none;-webkit-appearance:none;border-radius:0}
+.grp-api-row input:focus{border-color:var(--accent)}
+.grp-colors{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.grp-color-dot{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid transparent}
+.grp-color-dot.sel{border-color:var(--text)}
 </style>
 </head>
 <body>
@@ -282,6 +315,70 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <div class="wc" id="wc-ab"></div>
   </div>
 
+  <!-- GROUP -->
+  <div class="tab" id="tab-group">
+    <!-- Not connected state -->
+    <div id="grpLobby">
+      <div class="grp-hero">
+        <div class="grp-hero-ttl">GROUP TRACKING</div>
+        <div class="grp-hero-sub">Track weight with friends — share a room code</div>
+      </div>
+      <div class="grp-actions">
+        <button class="btn-s" onclick="showGrpForm('create')">+ Create Room</button>
+        <button class="btn-s" onclick="showGrpForm('join')">↳ Join Room</button>
+      </div>
+      <!-- API Config (collapsed if already set) -->
+      <div class="grp-form vis" id="grpApiForm" style="margin-top:12px">
+        <div class="sb-ttl" style="margin-bottom:10px">AWS API Connection</div>
+        <div class="grp-api-row"><label>API Endpoint URL</label><input id="grp-api-url" placeholder="https://xxxxxxxx.execute-api.us-east-1.amazonaws.com/prod" autocapitalize="none" autocorrect="off" spellcheck="false"></div>
+        <div class="grp-api-row"><label>Your Display Name</label><input id="grp-username" placeholder="chris" autocapitalize="none" autocorrect="off" spellcheck="false"></div>
+      </div>
+      <!-- Create form -->
+      <div class="grp-form" id="grpCreateForm" style="margin-top:8px">
+        <div class="sb-ttl" style="margin-bottom:10px">Create New Room</div>
+        <div class="grp-api-row"><label>Room Name</label><input id="grp-create-name" placeholder="e.g. Summer Shred 2026"></div>
+        <button class="btn-p" onclick="grpCreate()">CREATE ROOM</button>
+      </div>
+      <!-- Join form -->
+      <div class="grp-form" id="grpJoinForm" style="margin-top:8px">
+        <div class="sb-ttl" style="margin-bottom:10px">Join Existing Room</div>
+        <div class="grp-api-row"><label>Room Code</label><input id="grp-join-code" placeholder="ABC123" style="text-transform:uppercase;letter-spacing:4px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:24px" maxlength="6"></div>
+        <button class="btn-p" onclick="grpJoin()">JOIN ROOM</button>
+      </div>
+    </div>
+
+    <!-- Connected state -->
+    <div id="grpRoom" style="display:none">
+      <div class="grp-room vis">
+        <div class="grp-room-name" id="grpRoomName">—</div>
+        <div class="grp-room-code" id="grpRoomCode">—</div>
+        <div class="grp-hero-sub" style="text-align:center;margin-bottom:4px">Share this code with friends</div>
+        <button class="btn-s" style="width:100%;margin-top:10px" onclick="grpCopyCode()">Copy Room Code</button>
+      </div>
+      <div class="grp-lb">
+        <div class="grp-lb-hdr">
+          <div class="grp-lb-ttl">Members</div>
+          <button class="grp-lb-refresh" onclick="grpRefresh()">↻ Refresh</button>
+        </div>
+        <div id="grpMembersList"></div>
+      </div>
+      <div class="grp-chart-wrap">
+        <div class="chart-hdr">
+          <div class="chart-ttl">Group Progress</div>
+          <div class="legend" id="grpLegend"></div>
+        </div>
+        <canvas id="grpChart" height="210"></canvas>
+      </div>
+      <div class="grp-lb" style="margin-top:4px">
+        <div class="grp-lb-ttl" style="margin-bottom:8px">Leaderboard — Weekly Loss</div>
+        <div id="grpLeaderboard"></div>
+      </div>
+      <div class="grp-disconnect">
+        <button class="danger-btn" style="width:auto;display:inline-block;padding:10px 24px" onclick="grpDisconnect()">LEAVE ROOM</button>
+      </div>
+    </div>
+  </div>
+
   <!-- SETTINGS -->
   <div class="tab" id="tab-settings">
     <div class="sb">
@@ -315,13 +412,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <div class="sb-ttl">Danger Zone</div>
       <button class="danger-btn" onclick="clearAllData()">CLEAR ALL LOCAL DATA</button>
     </div>
-    <div style="text-align:center;padding:8px 0 16px;color:var(--text-muted);font-size:11px;letter-spacing:1px">v1.1.0</div>
+    <div style="text-align:center;padding:8px 0 16px;color:var(--text-muted);font-size:11px;letter-spacing:1px">v1.2.0</div>
   </div>
 
   <div class="nav">
     <button class="nb on" onclick="switchTab('dash',this)"><span class="nb-icon">📊</span><span class="nb-lbl">Dashboard</span></button>
     <button class="nb" onclick="switchTab('log',this)"><span class="nb-icon">✏️</span><span class="nb-lbl">Log</span></button>
     <button class="nb" onclick="switchTab('work',this)"><span class="nb-icon">💪</span><span class="nb-lbl">Workouts</span></button>
+    <button class="nb" onclick="switchTab('group',this)"><span class="nb-icon">👥</span><span class="nb-lbl">Group</span></button>
     <button class="nb" onclick="switchTab('settings',this)"><span class="nb-icon">⚙️</span><span class="nb-lbl">Settings</span></button>
   </div>
 </div>
@@ -910,6 +1008,263 @@ const cfg=getConfig();
 if(!cfg.user&&!cfg.skipped){showSetup()}
 else if(hasConfig()){syncOnLoad()}
 else{setSyncState('none','')}
+
+// ── GROUP / MULTIPLAYER ──────────────────────────────────────────────────────
+const LS_GRP='wt_grp_config';
+const GRP_COLORS=['#C6FF00','#FF4081','#448AFF','#FF9100','#7C4DFF','#00E5FF','#FFEA00','#69F0AE'];
+
+function grpConfig(){return lsGet(LS_GRP)||{}}
+function grpSaveConfig(c){lsSet(LS_GRP,c)}
+
+// Restore API config fields from storage
+(function(){
+  const gc=grpConfig();
+  if(gc.apiUrl)document.getElementById('grp-api-url').value=gc.apiUrl;
+  if(gc.username)document.getElementById('grp-username').value=gc.username;
+  if(gc.roomId)grpEnterRoom(gc.roomId);
+})();
+
+function showGrpForm(which){
+  document.getElementById('grpCreateForm').classList.toggle('vis',which==='create');
+  document.getElementById('grpJoinForm').classList.toggle('vis',which==='join');
+}
+
+function grpApiUrl(){
+  const el=document.getElementById('grp-api-url');
+  const gc=grpConfig();
+  return(el&&el.value.trim())||gc.apiUrl||'';
+}
+function grpUsername(){
+  const el=document.getElementById('grp-username');
+  const gc=grpConfig();
+  return(el&&el.value.trim())||gc.username||'';
+}
+
+async function grpFetch(path,opts={}){
+  const base=grpApiUrl().replace(/\/$/,'');
+  if(!base){toast('Set API endpoint URL first',true);throw new Error('No API URL')}
+  const url=base+path;
+  const res=await fetch(url,{
+    ...opts,
+    headers:{'Content-Type':'application/json',...(opts.headers||{})},
+  });
+  const data=await res.json();
+  if(!res.ok)throw new Error(data.error||`HTTP ${res.status}`);
+  return data;
+}
+
+async function grpCreate(){
+  const name=document.getElementById('grp-create-name').value.trim();
+  const username=grpUsername();
+  if(!username){toast('Enter your display name first',true);return}
+  if(!name){toast('Enter a room name',true);return}
+  try{
+    const room=await grpFetch('/rooms',{method:'POST',body:JSON.stringify({name,username})});
+    grpSaveConfig({...grpConfig(),apiUrl:grpApiUrl(),username,roomId:room.roomId,roomName:room.name});
+    grpEnterRoom(room.roomId);
+    toast('Room created: '+room.roomId);
+    // Push current data to group
+    await grpSyncLocal(room.roomId,username);
+  }catch(e){toast('Create failed: '+e.message,true)}
+}
+
+async function grpJoin(){
+  const code=document.getElementById('grp-join-code').value.trim().toUpperCase();
+  const username=grpUsername();
+  if(!username){toast('Enter your display name first',true);return}
+  if(!code||code.length!==6){toast('Enter a 6-character room code',true);return}
+  try{
+    const room=await grpFetch(`/rooms/${code}/join`,{method:'POST',body:JSON.stringify({username})});
+    grpSaveConfig({...grpConfig(),apiUrl:grpApiUrl(),username,roomId:code,roomName:room.name});
+    grpEnterRoom(code);
+    toast('Joined room: '+room.name);
+    await grpSyncLocal(code,username);
+  }catch(e){toast('Join failed: '+e.message,true)}
+}
+
+async function grpSyncLocal(roomId,username){
+  // Push all local weight entries to the group
+  const arr=sorted();
+  for(const d of arr){
+    try{
+      await grpFetch(`/entries/${roomId}`,{method:'POST',body:JSON.stringify({username,date:d.date,weight:d.w})});
+    }catch{/* ignore individual failures */}
+  }
+}
+
+async function grpEnterRoom(roomId){
+  document.getElementById('grpLobby').style.display='none';
+  document.getElementById('grpRoom').style.display='block';
+  document.getElementById('grpRoomCode').textContent=roomId;
+  try{
+    const room=await grpFetch(`/rooms/${roomId}`);
+    document.getElementById('grpRoomName').textContent=room.name||'';
+    grpSaveConfig({...grpConfig(),roomName:room.name});
+    await grpRenderRoom(roomId,room.members||[]);
+  }catch(e){
+    document.getElementById('grpRoomName').textContent=grpConfig().roomName||'Room';
+    toast('Could not load room: '+e.message,true);
+  }
+}
+
+async function grpRenderRoom(roomId,members){
+  const username=grpUsername();
+  try{
+    const {entries}=await grpFetch(`/entries/${roomId}`);
+    // Group entries by user
+    const byUser={};
+    entries.forEach(e=>{
+      if(!byUser[e.username])byUser[e.username]=[];
+      byUser[e.username].push({date:e.date,w:e.weight});
+    });
+    // Sort each user's entries
+    Object.values(byUser).forEach(arr=>arr.sort((a,b)=>a.date.localeCompare(b.date)));
+
+    // Render members list
+    const memberNames=members.length?members:Object.keys(byUser);
+    const html=memberNames.map(name=>{
+      const data=byUser[name]||[];
+      const latest=data.length?data[data.length-1]:null;
+      const first=data.length?data[0]:null;
+      const lost=first&&latest?(first.w-latest.w).toFixed(1):null;
+      const isMe=name===username;
+      return`<div class="grp-member">
+        <div class="grp-member-name${isMe?' me':''}">${name}${isMe?' (you)':''}</div>
+        <div class="grp-member-right">
+          <div class="grp-member-w">${latest?latest.w.toFixed(1)+' kg':'—'}</div>
+          <div class="grp-member-sub">${lost!==null?(lost>=0?'↓ '+lost:'↑ '+Math.abs(parseFloat(lost)))+' kg total':'no data'}</div>
+        </div>
+      </div>`;
+    }).join('');
+    document.getElementById('grpMembersList').innerHTML=html;
+
+    // Render group chart
+    grpRenderChart(byUser,memberNames);
+
+    // Render leaderboard (weekly loss)
+    grpRenderLeaderboard(byUser,memberNames);
+  }catch(e){
+    document.getElementById('grpMembersList').innerHTML='<div style="color:var(--text-muted);padding:12px;text-align:center">Could not load entries</div>';
+  }
+}
+
+let grpChartInstance;
+function grpRenderChart(byUser,members){
+  const canvas=document.getElementById('grpChart');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  if(grpChartInstance)grpChartInstance.destroy();
+
+  // Collect all dates across all users
+  const allDates=new Set();
+  Object.values(byUser).forEach(arr=>arr.forEach(d=>allDates.add(d.date)));
+  const dates=[...allDates].sort();
+  if(!dates.length)return;
+
+  const L=document.documentElement.classList.contains('light');
+  const tkc=L?'#AAA':'#3A3A3A',gc=L?'rgba(0,0,0,.05)':'rgba(255,255,255,.03)';
+  const bc=L?'#E0E0E0':'#1E1E1E',ytc=L?'#777':'#555';
+
+  const datasets=members.map((name,i)=>{
+    const data=byUser[name]||[];
+    const dataMap={};
+    data.forEach(d=>dataMap[d.date]=d.w);
+    const color=GRP_COLORS[i%GRP_COLORS.length];
+    return{
+      label:name,
+      data:dates.map(d=>dataMap[d]!==undefined?dataMap[d]:null),
+      borderColor:color,
+      borderWidth:2,
+      pointRadius:2,
+      pointBackgroundColor:color,
+      spanGaps:true,
+      tension:0.3,
+    };
+  });
+
+  // Legend
+  document.getElementById('grpLegend').innerHTML=members.map((name,i)=>{
+    const color=GRP_COLORS[i%GRP_COLORS.length];
+    return`<div class="li"><div class="ld" style="background:${color}"></div>${name}</div>`;
+  }).join('');
+
+  const allW=Object.values(byUser).flatMap(arr=>arr.map(d=>d.w));
+  const yMin=Math.floor(Math.min(...allW)-1),yMax=Math.ceil(Math.max(...allW)+1);
+
+  grpChartInstance=new Chart(ctx,{type:'line',data:{labels:dates.map(d=>fmtShort(d)),datasets},options:{
+    responsive:true,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false}},
+    scales:{x:{ticks:{color:tkc,font:{family:'Barlow Condensed',size:9},maxRotation:0,autoSkip:true,maxTicksLimit:7},grid:{color:gc},border:{color:bc}},
+    y:{min:yMin,max:yMax,ticks:{color:ytc,font:{family:'Bebas Neue',size:12},callback:v=>v+' kg'},grid:{color:gc},border:{color:bc}}},
+    animation:{duration:500}
+  }});
+}
+
+function grpRenderLeaderboard(byUser,members){
+  // Calculate 7-day loss for each member
+  const board=members.map(name=>{
+    const data=byUser[name]||[];
+    if(data.length<2)return{name,loss:null};
+    const recent=data.slice(-7);
+    const weekLoss=recent[0].w-recent[recent.length-1].w;
+    return{name,loss:parseFloat(weekLoss.toFixed(2))};
+  }).filter(m=>m.loss!==null).sort((a,b)=>b.loss-a.loss);
+
+  const username=grpUsername();
+  document.getElementById('grpLeaderboard').innerHTML=board.length?board.map((m,i)=>{
+    const isMe=m.name===username;
+    const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+    const cls=m.loss>0?'dn':'dp';
+    return`<div class="grp-member">
+      <div class="grp-member-name${isMe?' me':''}">${medal} ${m.name}</div>
+      <div class="grp-member-right"><div class="grp-member-w"><span class="${cls}">${m.loss>0?'↓':'↑'} ${Math.abs(m.loss).toFixed(2)} kg</span></div><div class="grp-member-sub">last 7 days</div></div>
+    </div>`;
+  }).join(''):'<div style="color:var(--text-muted);padding:12px;text-align:center">Need more data for leaderboard</div>';
+}
+
+async function grpRefresh(){
+  const gc=grpConfig();
+  if(!gc.roomId)return;
+  toast('Refreshing…');
+  await grpEnterRoom(gc.roomId);
+  // Also push latest local data
+  await grpSyncLocal(gc.roomId,grpUsername());
+  toast('Updated');
+}
+
+function grpCopyCode(){
+  const code=document.getElementById('grpRoomCode').textContent;
+  if(navigator.clipboard){navigator.clipboard.writeText(code).then(()=>toast('Code copied: '+code))}
+  else{toast(code)}
+}
+
+function grpDisconnect(){
+  if(!confirm('Leave this room? You can rejoin with the room code later.'))return;
+  const gc=grpConfig();
+  delete gc.roomId;delete gc.roomName;
+  grpSaveConfig(gc);
+  document.getElementById('grpLobby').style.display='';
+  document.getElementById('grpRoom').style.display='none';
+  toast('Left room');
+}
+
+// Auto-push to group when logging weight (hook into existing logWeight)
+const _origLogWeight=logWeight;
+async function logWeightWithGroup(){
+  // The original logWeight is called via onclick, so we hook the push part
+  const gc=grpConfig();
+  if(gc.roomId&&gc.username){
+    const date=document.getElementById('logDate').value,wt=parseFloat(document.getElementById('logWt').value);
+    if(date&&!isNaN(wt)&&wt>=40&&wt<=250){
+      try{await grpFetch(`/entries/${gc.roomId}`,{method:'POST',body:JSON.stringify({username:gc.username,date,weight:wt})})}catch{/* silent */}
+    }
+  }
+}
+// Patch the log button to also sync to group
+const logBtn=document.querySelector('.btn-p[onclick="logWeight()"]');
+if(logBtn)logBtn.setAttribute('onclick','logWeight().then(logWeightWithGroup)');
+
+// Update version
 </script>
 </body>
 </html>
